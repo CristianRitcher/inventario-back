@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Like } from 'typeorm';
 import { Producto } from '../../entities/producto.entity';
+import { Item } from '../../entities/item.entity';
 import { v2 as cloudinary } from 'cloudinary';
 
 @Injectable()
@@ -9,6 +10,8 @@ export class ProductosService {
   constructor(
     @InjectRepository(Producto)
     private productosRepository: Repository<Producto>,
+    @InjectRepository(Item)
+    private itemsRepository: Repository<Item>,
   ) {}
 
   async findAll(page = 1, limit = 30, search?: string): Promise<{ productos: Producto[]; total: number }> {
@@ -32,6 +35,61 @@ export class ProductosService {
     });
 
     return { productos, total };
+  }
+
+  async searchCombined(page = 1, limit = 30, search?: string): Promise<{ productos: any[]; total: number }> {
+    if (!search) {
+      return this.findAll(page, limit);
+    }
+
+    const skip = (page - 1) * limit;
+    
+    // Buscar productos
+    const [productos, productosCount] = await this.productosRepository.findAndCount({
+      where: [
+        { nombre: Like(`%${search}%`) },
+        { sku: Like(`%${search}%`) },
+        { marca: Like(`%${search}%`) },
+      ],
+      relations: ['bodega', 'items'],
+      skip,
+      take: limit,
+      order: { id: 'DESC' },
+    });
+
+    // Buscar items que coincidan con la búsqueda
+    const items = await this.itemsRepository.find({
+      where: [
+        { serial: Like(`%${search}%`) },
+        { nombre: Like(`%${search}%`) },
+      ],
+      relations: ['producto', 'producto.bodega', 'seccion'],
+      take: limit - productos.length, // Completar hasta el límite
+    });
+
+    // Convertir items a formato de producto para mostrar
+    const itemsAsProducts = items.map(item => ({
+      ...item.producto,
+      nombre: `${item.nombre || item.producto.nombre} (Item)`,
+      isItem: true,
+      itemData: {
+        id: item.id,
+        serial: item.serial,
+        cantidad: item.cantidad,
+        ubicacion: item.ubicacion,
+        estado: item.estado,
+        seccion: item.seccion,
+      }
+    }));
+
+    // Combinar resultados
+    const combinedResults = [...productos, ...itemsAsProducts];
+    const totalResults = productosCount + items.length;
+
+    return { 
+      productos: combinedResults.slice(0, limit), 
+      total: totalResults 
+    };
   }
 
   async findBySku(sku: string): Promise<Producto | null> {

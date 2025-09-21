@@ -33,6 +33,15 @@ export class ProductosController {
     return this.productosService.findAll(+page, +limit, search);
   }
 
+  @Get('search/combined')
+  searchCombined(
+    @Query('page') page = 1,
+    @Query('limit') limit = 30,
+    @Query('search') search?: string,
+  ) {
+    return this.productosService.searchCombined(+page, +limit, search);
+  }
+
   @Get('sku/:sku')
   findBySku(@Param('sku') sku: string) {
     return this.productosService.findBySku(sku);

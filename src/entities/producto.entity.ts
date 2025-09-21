@@ -22,14 +22,14 @@ export class Producto {
   @Column({ name: 'ruta_imagen', type: 'text', nullable: true })
   ruta_imagen: string;
 
-  @Column({ type: 'int', default: 1 })
-  MOQ: number;
+  @Column({ name: 'MOQ', type: 'int', default: 1 })
+  moq: number;
 
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  UM: string; // Unidad de medida
+  @Column({ name: 'UM', type: 'varchar', length: 50, nullable: true })
+  um: string; // Unidad de medida
 
-  @Column({ type: 'varchar', length: 50, nullable: true })
-  UE: string; // Unidad de empaque
+  @Column({ name: 'UE', type: 'varchar', length: 50, nullable: true })
+  ue: string; // Unidad de empaque
 
   @Column({ type: 'varchar', length: 255, nullable: true })
   responsable: string;
