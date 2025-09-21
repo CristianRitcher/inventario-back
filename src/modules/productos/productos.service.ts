@@ -34,14 +34,14 @@ export class ProductosService {
     return { productos, total };
   }
 
-  async findBySku(sku: string): Promise<Producto> {
+  async findBySku(sku: string): Promise<Producto | null> {
     return this.productosRepository.findOne({
       where: { sku },
       relations: ['bodega', 'items'],
     });
   }
 
-  async findOne(id: number): Promise<Producto> {
+  async findOne(id: number): Promise<Producto | null> {
     return this.productosRepository.findOne({
       where: { id },
       relations: ['bodega', 'items', 'items.seccion'],
@@ -55,7 +55,11 @@ export class ProductosService {
 
   async update(id: number, productoData: Partial<Producto>): Promise<Producto> {
     await this.productosRepository.update(id, productoData);
-    return this.findOne(id);
+    const producto = await this.findOne(id);
+    if (!producto) {
+      throw new Error(`Producto with ID ${id} not found`);
+    }
+    return producto;
   }
 
   async remove(id: number): Promise<void> {
@@ -81,8 +85,10 @@ export class ProductosService {
         (error, result) => {
           if (error) {
             reject(error);
-          } else {
+          } else if (result) {
             resolve(result.secure_url);
+          } else {
+            reject(new Error('Upload failed: no result'));
           }
         },
       ).end(file.buffer);

@@ -16,7 +16,7 @@ export class ItemsService {
     });
   }
 
-  async findBySerial(serial: string): Promise<Item> {
+  async findBySerial(serial: string): Promise<Item | null> {
     return this.itemsRepository.findOne({
       where: { serial },
       relations: ['producto', 'seccion', 'seccion.bodega'],
@@ -37,7 +37,7 @@ export class ItemsService {
     });
   }
 
-  async findOne(id: number): Promise<Item> {
+  async findOne(id: number): Promise<Item | null> {
     return this.itemsRepository.findOne({
       where: { id },
       relations: ['producto', 'seccion', 'seccion.bodega'],
@@ -51,7 +51,11 @@ export class ItemsService {
 
   async update(id: number, itemData: Partial<Item>): Promise<Item> {
     await this.itemsRepository.update(id, itemData);
-    return this.findOne(id);
+    const item = await this.findOne(id);
+    if (!item) {
+      throw new Error(`Item with ID ${id} not found`);
+    }
+    return item;
   }
 
   async remove(id: number): Promise<void> {

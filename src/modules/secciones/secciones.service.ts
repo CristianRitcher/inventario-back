@@ -23,7 +23,7 @@ export class SeccionesService {
     });
   }
 
-  async findOne(id: number): Promise<Seccion> {
+  async findOne(id: number): Promise<Seccion | null> {
     return this.seccionesRepository.findOne({
       where: { id },
       relations: ['bodega', 'items'],
@@ -37,7 +37,11 @@ export class SeccionesService {
 
   async update(id: number, seccionData: Partial<Seccion>): Promise<Seccion> {
     await this.seccionesRepository.update(id, seccionData);
-    return this.findOne(id);
+    const seccion = await this.findOne(id);
+    if (!seccion) {
+      throw new Error(`Seccion with ID ${id} not found`);
+    }
+    return seccion;
   }
 
   async remove(id: number): Promise<void> {

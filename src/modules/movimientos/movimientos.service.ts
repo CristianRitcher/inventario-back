@@ -4,7 +4,7 @@ import { Repository, Between } from 'typeorm';
 import { Movimiento, TipoMovimientoEnum } from '../../entities/movimiento.entity';
 import { MovimientoDetalle } from '../../entities/movimiento-detalle.entity';
 import { AuditoriaDetalle } from '../../entities/auditoria-detalle.entity';
-import { Item } from '../../entities/item.entity';
+import { Item, UbicacionEnum } from '../../entities/item.entity';
 
 export interface CreateMovimientoDto {
   tipo: TipoMovimientoEnum;
@@ -67,7 +67,7 @@ export class MovimientosService {
     return { movimientos, total };
   }
 
-  async findOne(id: number): Promise<Movimiento> {
+  async findOne(id: number): Promise<Movimiento | null> {
     return this.movimientosRepository.findOne({
       where: { id },
       relations: [
@@ -126,7 +126,11 @@ export class MovimientosService {
       }
 
       await queryRunner.commitTransaction();
-      return this.findOne(savedMovimiento.id);
+      const finalMovimiento = await this.findOne(savedMovimiento.id);
+      if (!finalMovimiento) {
+        throw new Error(`Movimiento with ID ${savedMovimiento.id} not found`);
+      }
+      return finalMovimiento;
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;
@@ -141,21 +145,26 @@ export class MovimientosService {
     itemData: { id_item: number; cantidad: number },
     movimientoData: CreateMovimientoDto,
   ): Promise<void> {
-    const item = await queryRunner.manager.findOne(Item, { where: { id: itemData.id_item } });
+    const item = await queryRunner.manager.findOne(Item, { 
+      where: { id: itemData.id_item },
+      relations: ['producto']
+    });
     if (!item) return;
 
     switch (tipo) {
       case TipoMovimientoEnum.INGRESO:
-        // Aumentar cantidad
+        // Aumentar cantidad y cambiar ubicación a DENTRO
         item.cantidad += itemData.cantidad;
+        item.ubicacion = UbicacionEnum.DENTRO;
         if (movimientoData.id_seccion) {
           item.id_seccion = movimientoData.id_seccion;
         }
         break;
 
       case TipoMovimientoEnum.EGRESO:
-        // Disminuir cantidad
+        // Disminuir cantidad y cambiar ubicación a FUERA
         item.cantidad -= itemData.cantidad;
+        item.ubicacion = UbicacionEnum.FUERA;
         if (item.cantidad <= 0) {
           item.cantidad = 0;
           item.id_seccion = null;
@@ -170,11 +179,14 @@ export class MovimientosService {
         break;
 
       case TipoMovimientoEnum.ELIMINACION:
-        // Marcar como eliminado o reducir cantidad
+        // Solo restar la cantidad, no eliminar
+        console.log("item.cantidad", item.cantidad);
+        console.log(itemData.cantidad);
         item.cantidad -= itemData.cantidad;
-        if (item.cantidad <= 0) {
-          await queryRunner.manager.remove(item);
-          return;
+        console.log("Nueva cantidad:", item.cantidad);
+        // Asegurar que no sea negativa
+        if (item.cantidad < 0) {
+          item.cantidad = 0;
         }
         break;
     }

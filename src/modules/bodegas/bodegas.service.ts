@@ -16,7 +16,7 @@ export class BodegasService {
     });
   }
 
-  async findOne(id: number): Promise<Bodega> {
+  async findOne(id: number): Promise<Bodega | null> {
     return this.bodegasRepository.findOne({
       where: { id },
       relations: ['secciones', 'usuarios', 'productos'],
@@ -30,7 +30,11 @@ export class BodegasService {
 
   async update(id: number, bodegaData: Partial<Bodega>): Promise<Bodega> {
     await this.bodegasRepository.update(id, bodegaData);
-    return this.findOne(id);
+    const bodega = await this.findOne(id);
+    if (!bodega) {
+      throw new Error(`Bodega with ID ${id} not found`);
+    }
+    return bodega;
   }
 
   async remove(id: number): Promise<void> {

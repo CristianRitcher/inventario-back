@@ -16,14 +16,14 @@ export class UsuariosService {
     });
   }
 
-  async findOne(id: number): Promise<Usuario> {
+  async findOne(id: number): Promise<Usuario | null> {
     return this.usuariosRepository.findOne({
       where: { id },
       relations: ['bodega'],
     });
   }
 
-  async findByEmail(correo: string): Promise<Usuario> {
+  async findByEmail(correo: string): Promise<Usuario | null> {
     return this.usuariosRepository.findOne({
       where: { correo },
       relations: ['bodega'],
@@ -37,7 +37,11 @@ export class UsuariosService {
 
   async update(id: number, usuarioData: Partial<Usuario>): Promise<Usuario> {
     await this.usuariosRepository.update(id, usuarioData);
-    return this.findOne(id);
+    const usuario = await this.findOne(id);
+    if (!usuario) {
+      throw new Error(`Usuario with ID ${id} not found`);
+    }
+    return usuario;
   }
 
   async remove(id: number): Promise<void> {
